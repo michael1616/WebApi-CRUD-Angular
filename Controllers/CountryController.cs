@@ -124,28 +124,28 @@ namespace WebApi.Controllers
 
                 SqlParameter paramPageSize = new SqlParameter
                 {
-                    ParameterName = "@pageSize",
+                    ParameterName = "@pPageSize",
                     Value = request.PageSize,
                     DbType = DbType.Int32
                 };
 
                 SqlParameter paramPageNumber = new SqlParameter
                 {
-                    ParameterName = "@pageNumber",
+                    ParameterName = "@pPageIndex",
                     Value = request.PageNumber,
                     DbType = DbType.Int32
                 };
 
                 SqlParameter paramOrderBy = new SqlParameter
                 {
-                    ParameterName = "@orderBy",
+                    ParameterName = "@pColumnName",
                     Value = request.OrderBy,
                     SqlDbType = SqlDbType.NVarChar
                 };
 
                 SqlParameter paramOrderDir = new SqlParameter
                 {
-                    ParameterName = "@orderDir",
+                    ParameterName = "@pColumnOrder",
                     Value = request.OrderDir,
                     SqlDbType = SqlDbType.NVarChar
                 };
@@ -160,7 +160,7 @@ namespace WebApi.Controllers
 
                 SqlParameter paramTotalRecords = new SqlParameter
                 {
-                    ParameterName = "@TotalRecords",
+                    ParameterName = "@pTotalCount",
                     Direction = ParameterDirection.Output,
                     SqlDbType = SqlDbType.Int
                 };
@@ -177,7 +177,7 @@ namespace WebApi.Controllers
 
                 using (SqlConnection con = new SqlConnection(_db.Database.GetConnectionString()))
                 {
-                    using (SqlCommand cmd = new SqlCommand("paGetCountries", con))
+                    using (SqlCommand cmd = new SqlCommand("spPaginationCountryV2", con))
                     {
                         con.Open();
 
@@ -205,7 +205,7 @@ namespace WebApi.Controllers
                     Name = m.Field<string>("Name"),
                     Capital = m.Field<string>("Capital"),
                     State = m.Field<bool>("State"),
-                    IdRow = m.Field<long>("IdRow")
+                    IdRow = m.Field<long>("RowId")
                 }).ToList();
 
                 _response.TotalRecords = paramTotalRecords.Value != DBNull.Value ? Convert.ToInt64(paramTotalRecords.Value) : 0;
@@ -226,6 +226,25 @@ namespace WebApi.Controllers
 
         public DataTable ToDataTable<T>(List<T> items)
         {
+            var data = items as List<Filters>;
+
+            if (data == null) return GetEmptyDatatable();
+
+            int cont = 0;
+
+            foreach (var item in data)
+            {
+                if (string.IsNullOrEmpty(item.ValueTable))
+                {
+                    if (cont == (data.Count - 1))
+                    {
+                        return GetEmptyDatatable();
+                    }
+
+                    cont++;
+                }
+            }
+
             DataTable dataTable = new DataTable(typeof(T).Name);
             //Get all the properties
             PropertyInfo[] Props = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
@@ -254,6 +273,15 @@ namespace WebApi.Controllers
         }
 
 
+        public static DataTable GetEmptyDatatable()
+        {
+            DataTable dataTable2 = new DataTable("Filters");
+
+            dataTable2.Columns.Add("keyTable", typeof(string));
+            dataTable2.Columns.Add("ValueTable", typeof(string));
+
+            return dataTable2;
+        }
 
     }
 }
